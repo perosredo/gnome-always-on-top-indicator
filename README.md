@@ -2,6 +2,8 @@
 
 GNOME Shell extension that adds visual accent borders to windows set as always-on-top.
 
+https://extensions.gnome.org/extension/8561/always-on-top-indicator/
+
 ## Features
 
 - 1px-10px customizable border thickness  
