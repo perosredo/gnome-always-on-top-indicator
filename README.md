@@ -19,11 +19,6 @@ ln -sf $(pwd) ~/.local/share/gnome-shell/extensions/always-on-top-indicator@sred
 
 Restart GNOME Shell (`Alt+F2`, type `r`) and enable via Extensions app.
 
-## Usage
-
-Set window always-on-top: `Super+T` (if configured)  
-Adjust border thickness: Extension preferences
-
 ## Requirements
 
 - GNOME Shell 45-48
