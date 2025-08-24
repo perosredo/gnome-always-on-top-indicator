@@ -1,10 +1,9 @@
 import St from 'gi://St';
 import Meta from 'gi://Meta';
+import Gio from 'gi://Gio';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-
-const BORDER_WIDTH = 1;
 
 export default class AlwaysOnTopIndicatorExtension extends Extension {
     constructor(metadata) {
@@ -14,6 +13,34 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     }
 
     enable() {
+        // Initialize settings
+        this._settings = this.getSettings();
+        this._borderWidth = this._settings.get_double('border-thickness');
+        
+        // Watch for settings changes
+        this._settingsChangedId = this._settings.connect('changed::border-thickness', () => {
+            const newWidth = this._settings.get_double('border-thickness');
+            if (newWidth === this._borderWidth) return; // No change
+            
+            this._borderWidth = newWidth;
+            
+            // Update all existing borders - just update their style, don't recreate
+            this._borders.forEach((borderInfo, metaWindow) => {
+                if (borderInfo.actor) {
+                    borderInfo.actor.set_style(`border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
+                                                background-color: transparent;`);
+                    // Update position to account for new border width
+                    try {
+                        const rect = metaWindow.get_frame_rect();
+                        borderInfo.actor.set_position(rect.x - this._borderWidth, rect.y - this._borderWidth);
+                        borderInfo.actor.set_size(rect.width + 2 * this._borderWidth, rect.height + 2 * this._borderWidth);
+                    } catch (e) {
+                        // Window may have been destroyed
+                    }
+                }
+            });
+        });
+        
         // Connect to window added/removed signals
         this._windowAddedId = global.display.connect('window-created', 
             this._onWindowCreated.bind(this));
@@ -29,6 +56,13 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     }
 
     disable() {
+        // Disconnect settings
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = null;
+        }
+        this._settings = null;
+        
         // Disconnect signals
         if (this._windowAddedId) {
             global.display.disconnect(this._windowAddedId);
@@ -129,7 +163,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             reactive: false,
             can_focus: false,
             track_hover: false,
-            style: `border: ${BORDER_WIDTH}px solid rgba(189, 147, 249, 1);
+            style: `border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
                     background-color: transparent;`
         });
 
@@ -137,8 +171,8 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         const updateBorderGeometry = () => {
             try {
                 const rect = metaWindow.get_frame_rect();
-                border.set_position(rect.x - BORDER_WIDTH, rect.y - BORDER_WIDTH);
-                border.set_size(rect.width + 2 * BORDER_WIDTH, rect.height + 2 * BORDER_WIDTH);
+                border.set_position(rect.x - this._borderWidth, rect.y - this._borderWidth);
+                border.set_size(rect.width + 2 * this._borderWidth, rect.height + 2 * this._borderWidth);
             } catch (e) {
                 // Window may have been destroyed
             }

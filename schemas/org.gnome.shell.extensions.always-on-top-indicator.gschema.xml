@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.always-on-top-indicator" path="/org/gnome/shell/extensions/always-on-top-indicator/">
+    <key name="border-thickness" type="d">
+      <default>1.0</default>
+      <summary>Border thickness</summary>
+      <description>Thickness of the border around always-on-top windows (in pixels)</description>
+      <range min="0.25" max="10.0"/>
+    </key>
+  </schema>
+</schemalist>
