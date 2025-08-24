@@ -1,0 +1,8 @@
+{
+    "uuid": "always-on-top-indicator@petar",
+    "name": "Always On Top Indicator",
+    "description": "Shows a 1px accent border on windows that are set to always-on-top",
+    "version": 1,
+    "shell-version": ["45", "46", "47", "48"],
+    "url": "https://github.com/petar/always-on-top-indicator"
+}
