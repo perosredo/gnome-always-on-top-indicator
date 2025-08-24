@@ -12,9 +12,9 @@ GNOME Shell extension that adds visual accent borders to windows set as always-o
 ## Installation
 
 ```bash
-git clone https://github.com/sredojevic/gnome-always-on-top-indicator.git
+git clone https://github.com/perosredo/gnome-always-on-top-indicator.git
 cd gnome-always-on-top-indicator
-ln -sf $(pwd) ~/.local/share/gnome-shell/extensions/always-on-top-indicator@petar
+ln -sf $(pwd) ~/.local/share/gnome-shell/extensions/always-on-top-indicator@sredojevic.ca
 ```
 
 Restart GNOME Shell (`Alt+F2`, type `r`) and enable via Extensions app.

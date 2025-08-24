@@ -1,9 +1,8 @@
 {
-    "uuid": "always-on-top-indicator@petar",
+    "uuid": "always-on-top-indicator@sredojevic.ca",
     "name": "Always On Top Indicator",
     "description": "Shows a customizable accent border on windows that are set to always-on-top",
-    "version": 2,
     "shell-version": ["45", "46", "47", "48"],
-    "url": "https://github.com/petar/always-on-top-indicator",
+    "url": "https://github.com/perosredo/gnome-always-on-top-indicator",
     "settings-schema": "org.gnome.shell.extensions.always-on-top-indicator"
 }
