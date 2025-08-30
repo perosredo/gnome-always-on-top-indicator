@@ -10,6 +10,9 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         super(metadata);
         this._borders = new Map();
         this._handlerIds = new Map();
+        this._overviewVisibleId = null;
+        this._overviewHiddenId = null;
+        this._restackedId = null;
     }
 
     enable() {
@@ -45,6 +48,19 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         this._windowAddedId = global.display.connect('window-created', 
             this._onWindowCreated.bind(this));
         
+        // Connect to overview signals to hide/show borders
+        this._overviewVisibleId = Main.overview.connect('showing', () => {
+            this._hideAllBorders();
+        });
+        this._overviewHiddenId = Main.overview.connect('hiding', () => {
+            this._showAllBorders();
+        });
+        
+        // Connect to global restacking to update z-indexes
+        this._restackedId = global.display.connect('restacked', () => {
+            this._updateAllBorderZIndexes();
+        });
+        
         // Process existing windows
         const windowActors = global.get_window_actors();
         for (const windowActor of windowActors) {
@@ -67,6 +83,22 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         if (this._windowAddedId) {
             global.display.disconnect(this._windowAddedId);
             this._windowAddedId = null;
+        }
+        
+        // Disconnect overview signals
+        if (this._overviewVisibleId) {
+            Main.overview.disconnect(this._overviewVisibleId);
+            this._overviewVisibleId = null;
+        }
+        if (this._overviewHiddenId) {
+            Main.overview.disconnect(this._overviewHiddenId);
+            this._overviewHiddenId = null;
+        }
+        
+        // Disconnect restacked signal
+        if (this._restackedId) {
+            global.display.disconnect(this._restackedId);
+            this._restackedId = null;
         }
 
         // Clean up all borders and handlers
@@ -118,6 +150,8 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         handlers.unmanaged = metaWindow.connect('unmanaged', () => {
             this._cleanupWindow(metaWindow);
         });
+        
+        // We'll handle restacking globally in enable() to avoid multiple connections
         
         this._handlerIds.set(metaWindow, handlers);
 
@@ -180,8 +214,15 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
         updateBorderGeometry();
 
-        // Add to UI group
+        // Add to UI group with appropriate stack order
+        // Get the window's stack position to set proper z-index
+        const stackPosition = metaWindow.get_stable_sequence();
         Main.layoutManager.addChrome(border);
+        
+        // Set z-index based on window stack position to respect hierarchy
+        border.set_style(`border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
+                          background-color: transparent;
+                          z-index: ${stackPosition};`);
 
         // Keep border updated with window geometry
         const sizeChangedId = metaWindow.connect('size-changed', updateBorderGeometry);
@@ -222,5 +263,36 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             
             this._borders.delete(metaWindow);
         }
+    }
+
+    _hideAllBorders() {
+        this._borders.forEach((borderInfo) => {
+            if (borderInfo.actor) {
+                borderInfo.actor.hide();
+            }
+        });
+    }
+
+    _showAllBorders() {
+        this._borders.forEach((borderInfo) => {
+            if (borderInfo.actor) {
+                borderInfo.actor.show();
+            }
+        });
+    }
+
+    _updateAllBorderZIndexes() {
+        this._borders.forEach((borderInfo, metaWindow) => {
+            if (borderInfo.actor && metaWindow) {
+                try {
+                    const stackPosition = metaWindow.get_stable_sequence();
+                    borderInfo.actor.set_style(`border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
+                                              background-color: transparent;
+                                              z-index: ${stackPosition};`);
+                } catch (e) {
+                    // Window may be destroyed
+                }
+            }
+        });
     }
 }
