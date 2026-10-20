@@ -1,6 +1,7 @@
 import St from 'gi://St';
 import Meta from 'gi://Meta';
 import Gio from 'gi://Gio';
+import GObject from 'gi://GObject';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -30,8 +31,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             // Update all existing borders - just update their style, don't recreate
             this._borders.forEach((borderInfo, metaWindow) => {
                 if (borderInfo.actor) {
-                    borderInfo.actor.set_style(`border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
-                                                background-color: transparent;`);
+                    borderInfo.actor.set_style(this._borderStyle());
                     // Update position to account for new border width
                     try {
                         const rect = metaWindow.get_frame_rect();
@@ -56,9 +56,13 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             this._showAllBorders();
         });
         
-        // Connect to global restacking to update z-indexes
+        // Keep each border directly above its window when the stack changes.
+        // Deferred so mutter has already reordered the window actors.
         this._restackedId = global.display.connect('restacked', () => {
-            this._updateAllBorderZIndexes();
+            global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
+                this._restackAllBorders();
+                return false;
+            });
         });
         
         // Process existing windows
@@ -197,8 +201,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             reactive: false,
             can_focus: false,
             track_hover: false,
-            style: `border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
-                    background-color: transparent;`
+            style: this._borderStyle(),
         });
 
         // Set border size and position
@@ -214,15 +217,17 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
         updateBorderGeometry();
 
-        // Add to UI group with appropriate stack order
-        // Get the window's stack position to set proper z-index
-        const stackPosition = metaWindow.get_stable_sequence();
-        Main.layoutManager.addChrome(border);
-        
-        // Set z-index based on window stack position to respect hierarchy
-        border.set_style(`border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
-                          background-color: transparent;
-                          z-index: ${stackPosition};`);
+        // Place the border in the window group directly above its window, so
+        // windows stacked higher cover it like they cover the window itself
+        global.window_group.insert_child_above(border, windowActor);
+
+        // Follow the window's visibility (e.g. workspace switches)
+        windowActor.bind_property('visible', border, 'visible',
+            GObject.BindingFlags.SYNC_CREATE);
+
+        // Borders are hidden while the overview is open
+        if (Main.overview.visible)
+            border.opacity = 0;
 
         // Keep border updated with window geometry
         const sizeChangedId = metaWindow.connect('size-changed', updateBorderGeometry);
@@ -232,7 +237,8 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         this._borders.set(metaWindow, {
             actor: border,
             sizeChangedId: sizeChangedId,
-            positionChangedId: positionChangedId
+            positionChangedId: positionChangedId,
+            windowActor: windowActor,
         });
     }
 
@@ -257,7 +263,6 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             
             // Remove border actor
             if (borderInfo.actor) {
-                Main.layoutManager.removeChrome(borderInfo.actor);
                 borderInfo.actor.destroy();
             }
             
@@ -268,7 +273,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     _hideAllBorders() {
         this._borders.forEach((borderInfo) => {
             if (borderInfo.actor) {
-                borderInfo.actor.hide();
+                borderInfo.actor.opacity = 0;
             }
         });
     }
@@ -276,23 +281,21 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     _showAllBorders() {
         this._borders.forEach((borderInfo) => {
             if (borderInfo.actor) {
-                borderInfo.actor.show();
+                borderInfo.actor.opacity = 255;
             }
         });
     }
 
-    _updateAllBorderZIndexes() {
-        this._borders.forEach((borderInfo, metaWindow) => {
-            if (borderInfo.actor && metaWindow) {
-                try {
-                    const stackPosition = metaWindow.get_stable_sequence();
-                    borderInfo.actor.set_style(`border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
-                                              background-color: transparent;
-                                              z-index: ${stackPosition};`);
-                } catch (e) {
-                    // Window may be destroyed
-                }
-            }
+    _restackAllBorders() {
+        this._borders.forEach((borderInfo) => {
+            const {actor, windowActor} = borderInfo;
+            if (actor && windowActor && windowActor.get_parent() === global.window_group)
+                global.window_group.set_child_above_sibling(actor, windowActor);
         });
+    }
+
+    _borderStyle() {
+        return `border: ${this._borderWidth}px solid rgba(189, 147, 249, 1);
+                background-color: transparent;`;
     }
 }
