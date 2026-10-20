@@ -30,4 +30,4 @@ Developed entirely by Claude with micromanagement from PS.
 
 ## License
 
-GPL-3.0
+GPL-3.0-or-later
