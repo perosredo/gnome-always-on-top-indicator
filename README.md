@@ -21,7 +21,7 @@ Restart GNOME Shell (`Alt+F2`, type `r`) or log in/out if on Wayland and enable 
 
 ## Requirements
 
-- GNOME Shell 45-48
+- GNOME Shell 45-50
 - Wayland or X11
 
 ## Development
